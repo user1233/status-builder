@@ -408,34 +408,28 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const shareBtn = document.getElementById('shareBtn');
 
-        // Background image with CORS fallback
+        // Background image
         let backgroundImage = new Image();
         let imageLoaded = false;
-        let canExport = false; // Can we export the canvas? (depends on CORS)
+        const isHttpProtocol = location.protocol.startsWith('http');
         
-        // Try loading with CORS first (needed for export)
-        backgroundImage.crossOrigin = 'anonymous';
+        console.log('Loading image from:', BACKGROUND_URL);
+        console.log('Protocol:', location.protocol, '- CORS enabled:', isHttpProtocol);
+        
+        // Enable CORS only on http/https (required for export)
+        if (isHttpProtocol) {
+            backgroundImage.crossOrigin = 'anonymous';
+        }
+        
         backgroundImage.onload = function() {
+            console.log('Image loaded successfully!', backgroundImage.naturalWidth, 'x', backgroundImage.naturalHeight);
             imageLoaded = true;
-            canExport = true;
             render();
         };
-        backgroundImage.onerror = function() {
-            // CORS failed, try without crossOrigin (display only, no export)
-            console.warn('CORS load failed, trying without crossOrigin (export will use gradient)');
-            let fallbackImage = new Image();
-            fallbackImage.onload = function() {
-                backgroundImage = fallbackImage;
-                imageLoaded = true;
-                canExport = false; // Can't export with this image
-                render();
-            };
-            fallbackImage.onerror = function() {
-                console.warn('Failed to load background image. Using gradient fallback.');
-                imageLoaded = false;
-                render();
-            };
-            fallbackImage.src = BACKGROUND_URL;
+        backgroundImage.onerror = function(e) {
+            console.error('Failed to load background image:', e);
+            imageLoaded = false;
+            render();
         };
         backgroundImage.src = BACKGROUND_URL;
 
@@ -549,24 +543,33 @@
 
         // Generate image blob
         async function generateBlob() {
-            return new Promise((resolve) => {
-                canvas.toBlob((blob) => {
-                    resolve(blob);
-                }, 'image/jpeg', 0.95);
+            return new Promise((resolve, reject) => {
+                try {
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.95);
+                } catch (e) {
+                    reject(e);
+                }
             });
         }
 
         // Download image
         async function downloadImage() {
-            const blob = await generateBlob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `whatsapp-status-${Date.now()}.jpg`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            try {
+                const blob = await generateBlob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `whatsapp-status-${Date.now()}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('הורדה לא זמינה בפתיחה מקומית. העלה את הקבצים לשרת (למשל GitHub Pages).');
+                console.error('Download failed:', e);
+            }
         }
 
         // Share image
@@ -596,10 +599,15 @@
 
         // Fullscreen preview
         function openFullscreen() {
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-            fullscreenImage.src = dataUrl;
-            fullscreenOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
+            try {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                fullscreenImage.src = dataUrl;
+                fullscreenOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } catch (e) {
+                alert('תצוגה מקדימה לא זמינה בפתיחה מקומית. העלה את הקבצים לשרת (למשל GitHub Pages).');
+                console.error('Fullscreen failed:', e);
+            }
         }
 
         function closeFullscreenPreview() {
@@ -693,7 +701,6 @@
         shareBtn.addEventListener('click', shareImage);
 
         // Initialize
-        backgroundImage.onload = render;
         initCanvas();
         render();
     </script>
