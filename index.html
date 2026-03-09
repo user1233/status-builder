@@ -381,8 +381,8 @@
     </div>
 
     <script>
-        // Background image (local file in same folder)
-        const BACKGROUND_URL = 'https://pub-057be4502ead4337b9cb1eecbe535a7f.r2.dev/%D7%9C%D7%A2%D7%9E%D7%95%D7%93%20%D7%94%D7%A8%D7%90%D7%A9%D7%99/%D7%9C%D7%A1%D7%98%D7%98%D7%95%D7%A1%20%D7%9B%D7%9C%D7%9C%D7%99%20%D7%94%D7%97%D7%99%D7%A0%D7%95%D7%9A%20%D7%95%D7%94%D7%94%D7%93%D7%A8%D7%9B%D7%94%20copy.png';
+        // Background image from Cloudinary
+        const BACKGROUND_URL = 'https://res.cloudinary.com/deblvstnh/image/upload/v1773060823/background_dlztlo.png';
 
         // Canvas dimensions (9:16 aspect ratio for WhatsApp Status)
         const CANVAS_WIDTH = 1080;
@@ -408,18 +408,34 @@
         const downloadBtn = document.getElementById('downloadBtn');
         const shareBtn = document.getElementById('shareBtn');
 
-        // Background image
+        // Background image with CORS fallback
         let backgroundImage = new Image();
         let imageLoaded = false;
+        let canExport = false; // Can we export the canvas? (depends on CORS)
+        
+        // Try loading with CORS first (needed for export)
         backgroundImage.crossOrigin = 'anonymous';
         backgroundImage.onload = function() {
             imageLoaded = true;
+            canExport = true;
             render();
         };
         backgroundImage.onerror = function() {
-            console.warn('Failed to load background image (CORS issue?). Using gradient fallback.');
-            imageLoaded = false;
-            render();
+            // CORS failed, try without crossOrigin (display only, no export)
+            console.warn('CORS load failed, trying without crossOrigin (export will use gradient)');
+            let fallbackImage = new Image();
+            fallbackImage.onload = function() {
+                backgroundImage = fallbackImage;
+                imageLoaded = true;
+                canExport = false; // Can't export with this image
+                render();
+            };
+            fallbackImage.onerror = function() {
+                console.warn('Failed to load background image. Using gradient fallback.');
+                imageLoaded = false;
+                render();
+            };
+            fallbackImage.src = BACKGROUND_URL;
         };
         backgroundImage.src = BACKGROUND_URL;
 
